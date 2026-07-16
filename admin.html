@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skyline Labs — Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0D1113;
+    --panel:#1A2124;
+    --panel-hi:#212a2d;
+    --paper:#ECE7DA;
+    --paper-dim:rgba(236,231,218,0.55);
+    --line:rgba(236,231,218,0.12);
+    --amber:#D9A441;
+    --amber-dim:rgba(217,164,65,0.55);
+    --teal:#4FA3A0;
+    --danger:#C4573A;
+    --radius:2px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--ink); color:var(--paper);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* ===== Login screen ===== */
+  #loginScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:0; padding:24px;
+  }
+  .login-box{
+    width:100%; max-width:380px; background:var(--panel);
+    border:1px solid var(--line); border-radius:var(--radius);
+    padding:36px 32px;
+  }
+  .login-eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:0.72rem; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--amber); margin-bottom:8px;
+  }
+  .login-title{
+    font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:1.4rem;
+    margin-bottom:28px;
+  }
+  .field-label{
+    display:block; font-family:'IBM Plex Mono',monospace; font-size:0.72rem;
+    letter-spacing:0.08em; text-transform:uppercase; color:var(--paper-dim);
+    margin-bottom:8px;
+  }
+  .field-input{
+    width:100%; background:var(--ink); border:1px solid var(--line);
+    color:var(--paper); border-radius:var(--radius); padding:12px 14px;
+    font-family:'Inter',sans-serif; font-size:0.94rem; margin-bottom:18px;
+    outline:none; transition:border-color 0.15s;
+  }
+  .field-input:focus{border-color:var(--amber);}
+  .login-btn{
+    width:100%; background:var(--amber); color:var(--ink); border:none;
+    border-radius:var(--radius); padding:13px; font-family:'IBM Plex Mono',monospace;
+    font-size:0.86rem; font-weight:600; letter-spacing:0.04em; cursor:pointer;
+    transition:background 0.15s;
+  }
+  .login-btn:hover{background:#e5b458;}
+  .login-err{
+    color:var(--danger); font-family:'IBM Plex Mono',monospace; font-size:0.78rem;
+    margin-top:14px; display:none;
+  }
+
+  /* ===== Console shell ===== */
+  #console{display:none; min-height:100vh; flex-direction:column;}
+  header{
+    border-bottom:1px solid var(--line); padding:18px 32px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-dot{width:8px; height:8px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal);}
+  .brand-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:1.02rem;}
+  .brand-sub{font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:var(--paper-dim);}
+  .logout-btn{
+    background:none; border:1px solid var(--line); color:var(--paper-dim);
+    font-family:'IBM Plex Mono',monospace; font-size:0.74rem; padding:8px 14px;
+    border-radius:var(--radius); cursor:pointer; transition:all 0.15s;
+  }
+  .logout-btn:hover{border-color:var(--danger); color:var(--danger);}
+
+  .layout{flex:1; display:flex; min-height:0;}
+
+  /* ===== Queue (left list) ===== */
+  .queue{
+    width:380px; flex-shrink:0; border-right:1px solid var(--line);
+    overflow-y:auto; max-height:calc(100vh - 61px);
+  }
+  .queue-head{
+    padding:16px 20px 12px; font-family:'IBM Plex Mono',monospace;
+    font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--paper-dim);
+    display:flex; justify-content:space-between;
+  }
+  .entry{
+    padding:16px 20px; border-bottom:1px solid var(--line); cursor:pointer;
+    transition:background 0.12s; position:relative;
+  }
+  .entry:hover{background:var(--panel);}
+  .entry.active{background:var(--panel-hi);}
+  .entry.active::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--amber);
+  }
+  .entry-top{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+  .status-dot{width:6px; height:6px; border-radius:50%; flex-shrink:0;}
+  .status-dot.pending{background:var(--amber); box-shadow:0 0 6px var(--amber);}
+  .status-dot.replied{background:var(--teal);}
+  .entry-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.92rem;}
+  .entry-time{
+    margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:0.68rem; color:var(--paper-dim);
+  }
+  .entry-preview{
+    font-size:0.82rem; color:var(--paper-dim); line-height:1.4;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .entry-tag{
+    display:inline-block; margin-top:8px; font-family:'IBM Plex Mono',monospace;
+    font-size:0.66rem; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--amber-dim); border:1px solid rgba(217,164,65,0.3);
+    padding:2px 8px; border-radius:var(--radius);
+  }
+
+  /* ===== Detail pane ===== */
+  .detail{flex:1; overflow-y:auto; max-height:calc(100vh - 61px);}
+  .detail-inner{max-width:640px; margin:0 auto; padding:40px 32px;}
+  .detail-empty{
+    height:100%; display:flex; align-items:center; justify-content:center;
+    color:var(--paper-dim); font-family:'IBM Plex Mono',monospace; font-size:0.86rem;
+  }
+  .detail-header{margin-bottom:28px; padding-bottom:24px; border-bottom:1px solid var(--line);}
+  .detail-name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.6rem; margin-bottom:10px;}
+  .detail-meta{display:flex; flex-wrap:wrap; gap:20px; font-family:'IBM Plex Mono',monospace; font-size:0.78rem; color:var(--paper-dim);}
+  .detail-meta a{color:var(--teal); text-decoration:none;}
+  .detail-badge{
+    display:inline-block; margin-top:14px; font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem; color:var(--ink); background:var(--amber);
+    padding:4px 12px; border-radius:var(--radius); font-weight:600;
+  }
+  .detail-label{
+    font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--paper-dim); margin-bottom:10px;
+  }
+  .detail-message{
+    background:var(--panel); border-left:2px solid var(--teal); border-radius:var(--radius);
+    padding:18px 20px; font-size:0.95rem; line-height:1.65; margin-bottom:32px; white-space:pre-wrap;
+  }
+  .reply-box{
+    width:100%; min-height:140px; background:var(--panel); border:1px solid var(--line);
+    color:var(--paper); border-radius:var(--radius); padding:16px; font-family:'Inter',sans-serif;
+    font-size:0.94rem; resize:vertical; outline:none; margin-bottom:14px;
+  }
+  .reply-box:focus{border-color:var(--amber);}
+  .reply-row{display:flex; align-items:center; gap:14px;}
+  .send-btn{
+    background:var(--amber); color:var(--ink); border:none; border-radius:var(--radius);
+    padding:12px 24px; font-family:'IBM Plex Mono',monospace; font-size:0.84rem; font-weight:600;
+    cursor:pointer; transition:background 0.15s;
+  }
+  .send-btn:hover{background:#e5b458;}
+  .reply-status{font-family:'IBM Plex Mono',monospace; font-size:0.78rem; color:var(--teal);}
+  .already-replied{
+    background:rgba(79,163,160,0.1); border:1px solid rgba(79,163,160,0.3); border-radius:var(--radius);
+    padding:18px 20px; font-size:0.9rem; line-height:1.6; white-space:pre-wrap;
+  }
+  .already-replied-label{
+    font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--teal); margin-bottom:10px;
+  }
+
+  @media (max-width: 760px){
+    .layout{flex-direction:column;}
+    .queue{width:100%; border-right:none; border-bottom:1px solid var(--line); max-height:40vh;}
+    .detail{max-height:none;}
+  }
+</style>
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen">
+    <div class="login-box">
+      <div class="login-eyebrow mono">// Skyline Labs</div>
+      <div class="login-title">Console access</div>
+      <label class="field-label">Email</label>
+      <input type="email" class="field-input" id="loginEmail" placeholder="you@gmail.com">
+      <label class="field-label">Password</label>
+      <input type="password" class="field-input" id="loginPassword" placeholder="••••••••">
+      <button class="login-btn" onclick="mockLogin()">Sign in</button>
+      <div class="login-err mono" id="loginErr">Invalid credentials. Try again.</div>
+    </div>
+  </div>
+
+  <!-- CONSOLE -->
+  <div id="console">
+    <header>
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <div>
+          <div class="brand-name">Skyline Labs</div>
+          <div class="brand-sub">Message console</div>
+        </div>
+      </div>
+      <button class="logout-btn mono" onclick="logOut()">Log out</button>
+    </header>
+
+    <div class="layout">
+      <div class="queue" id="queue"></div>
+      <div class="detail" id="detail">
+        <div class="detail-empty mono">Select a message to view</div>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  // ===== Supabase config =====
+  const SUPABASE_URL = "https://ufksaccekypuohdosukm.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVma3NhY2Nla3lwdW9oZG9zdWttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMTc1OTQsImV4cCI6MjA5OTY5MzU5NH0.0vZJWUIFdnUlrCVT3QQDI9nZ7ETHvQzZgET956909ic";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ===== EmailJS config (for sending replies) — fill in your REPLY template ID =====
+  const EMAILJS_PUBLIC_KEY   = "dSBabtifSQ3USQXrb";
+  const EMAILJS_SERVICE_ID   = "service_uek07mm";
+  const EMAILJS_REPLY_TEMPLATE_ID = "YOUR_REPLY_TEMPLATE_ID"; // separate template, see instructions below
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+
+  let messages = [];
+  let activeId = null;
+
+  async function mockLogin(){
+    const email = document.getElementById('loginEmail').value.trim();
+    const pw = document.getElementById('loginPassword').value.trim();
+    const errBox = document.getElementById('loginErr');
+    errBox.style.display = 'none';
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pw });
+    if (error) {
+      errBox.textContent = error.message;
+      errBox.style.display = 'block';
+      return;
+    }
+
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('console').style.display = 'flex';
+    await loadMessages();
+  }
+
+  // If already logged in (session persisted), skip straight to console
+  (async () => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('console').style.display = 'flex';
+      await loadMessages();
+    }
+  })();
+
+  async function loadMessages(){
+    const { data, error } = await supabaseClient
+      .from('messages')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Load error:', error);
+      return;
+    }
+    messages = data;
+    renderQueue();
+  }
+
+  async function logOut(){
+    await supabaseClient.auth.signOut();
+    location.reload();
+  }
+</script>
+<script>
+
+  function timeAgo(iso){
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-IN', {day:'numeric', month:'short'}) + ' · ' + d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function renderQueue(){
+    const q = document.getElementById('queue');
+    const pending = messages.filter(m => !m.replied).length;
+    q.innerHTML = `<div class="queue-head"><span>Inbox</span><span>${pending} pending</span></div>` +
+      messages.slice().sort((a,b)=> new Date(b.created_at) - new Date(a.created_at)).map(m => `
+        <div class="entry ${m.id === activeId ? 'active' : ''}" onclick="openMessage('${m.id}')">
+          <div class="entry-top">
+            <div class="status-dot ${m.replied ? 'replied' : 'pending'}"></div>
+            <div class="entry-name">${m.from_name}</div>
+            <div class="entry-time mono">${timeAgo(m.created_at)}</div>
+          </div>
+          <div class="entry-preview">${m.message}</div>
+          <span class="entry-tag">${m.project_type}</span>
+        </div>
+      `).join('');
+  }
+
+  function openMessage(id){
+    activeId = id;
+    renderQueue();
+    const m = messages.find(x => x.id === id);
+    const d = document.getElementById('detail');
+
+    const replySection = m.replied ? `
+      <div class="already-replied-label mono">✓ Reply sent</div>
+      <div class="already-replied">${m.reply_text}</div>
+    ` : `
+      <div class="detail-label mono">Send reply</div>
+      <textarea class="reply-box" id="replyInput" placeholder="Type your reply..."></textarea>
+
+      <label style="display:flex; align-items:center; gap:8px; margin-bottom:14px; font-family:'IBM Plex Mono',monospace; font-size:0.8rem; color:var(--paper-dim); cursor:pointer;">
+        <input type="checkbox" id="paymentToggle" onchange="document.getElementById('paymentAmountRow').style.display = this.checked ? 'flex' : 'none'">
+        Include payment request
+      </label>
+      <div id="paymentAmountRow" style="display:none; flex-direction:column; gap:10px; margin-bottom:14px;">
+        <input type="number" id="totalAmount" class="field-input" placeholder="Total project amount (₹)" style="margin-bottom:0;">
+        <input type="number" id="paymentAmount" class="field-input" placeholder="Advance to collect now (₹)" style="margin-bottom:0;">
+      </div>
+
+      <div class="reply-row">
+        <button class="send-btn" id="sendBtn" onclick="sendReply('${m.id}')">Send reply →</button>
+        <span class="reply-status mono" id="replyStatus"></span>
+      </div>
+    `;
+
+    d.innerHTML = `
+      <div class="detail-inner">
+        <div class="detail-header">
+          <div class="detail-name">${m.from_name}</div>
+          <div class="detail-meta">
+            <span>📞 ${m.phone}</span>
+            <a href="mailto:${m.reply_to}">✉ ${m.reply_to}</a>
+            <span>${timeAgo(m.created_at)}</span>
+          </div>
+          <div class="detail-badge">${m.project_type}</div>
+        </div>
+        <div class="detail-label mono">Requirement</div>
+        <div class="detail-message">${m.message}</div>
+        ${replySection}
+
+        <div style="margin-top:32px; padding-top:24px; border-top:1px solid var(--line);">
+          <div class="detail-label mono">Request advance payment</div>
+          <p style="font-size:0.82rem; color:var(--paper-dim); margin-bottom:14px;">Send an advance payment request any time — before or after your first reply.</p>
+          <input type="number" id="advanceTotalAmount" class="field-input" placeholder="Total project cost (₹, optional)" style="margin-bottom:10px;">
+          <input type="number" id="advanceAmountStandalone" class="field-input" placeholder="Advance amount to collect (₹)" style="margin-bottom:14px;">
+          <div class="reply-row">
+            <button class="send-btn" id="advanceSendBtn" onclick="sendAdvanceRequest('${m.id}')">Send advance request →</button>
+            <span class="reply-status mono" id="advanceStatus"></span>
+          </div>
+        </div>
+
+        <div style="margin-top:32px; padding-top:24px; border-top:1px solid var(--line);">
+          <div class="detail-label mono">Project complete — remaining payment</div>
+          <p style="font-size:0.82rem; color:var(--paper-dim); margin-bottom:14px;">Once the project is done, enter the total cost and how much advance was already received — the remaining amount is calculated and sent automatically.</p>
+          <input type="number" id="finalTotalAmount" class="field-input" placeholder="Total project cost (₹)" style="margin-bottom:10px;">
+          <input type="number" id="finalAdvanceReceived" class="field-input" placeholder="Advance already received (₹)" style="margin-bottom:10px;">
+          <div id="remainingPreview" style="font-family:'IBM Plex Mono',monospace; font-size:0.8rem; color:var(--teal); margin-bottom:14px;"></div>
+          <div class="reply-row">
+            <button class="send-btn" id="paymentSendBtn" onclick="sendPaymentRequest('${m.id}')">Send remaining payment request →</button>
+            <span class="reply-status mono" id="paymentStatus"></span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ===== Payment config =====
+  const UPI_ID = "vikaskishanpur@oksbi";
+  const PAYEE_NAME = "Skyline Lab";
+
+  function buildPaymentSection(amount, total, label){
+    if (!amount || isNaN(amount) || Number(amount) <= 0) return "";
+    label = label || "Amount due";
+    const note = `Skyline Lab — ${label}`;
+    const upiLink = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(PAYEE_NAME)}&am=${encodeURIComponent(amount)}&cu=INR&tn=${encodeURIComponent(note)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(upiLink)}`;
+    const totalRow = (total && !isNaN(total) && Number(total) > 0)
+      ? `<p style="margin:0 0 2px; color:#64748b; font-size:13px;">Total project cost: <strong style="color:#0f172a;">₹${Number(total).toLocaleString('en-IN')}</strong></p>`
+      : "";
+    return `
+      <div style="margin-top:24px; padding:20px; background:#f8fafc; border-radius:8px; text-align:center; font-family:Arial,sans-serif;">
+        ${totalRow}
+        <p style="margin:0 0 4px; color:#64748b; font-size:13px;">${label}</p>
+        <p style="margin:0 0 16px; color:#0f172a; font-size:22px; font-weight:700;">₹${Number(amount).toLocaleString('en-IN')}</p>
+        <img src="${qrUrl}" width="200" height="200" alt="UPI QR code" style="display:block; margin:0 auto 16px; border-radius:6px;">
+        <a href="${upiLink}" style="display:inline-block; background:#38bdf8; color:#0f172a; text-decoration:none; font-weight:700; padding:12px 28px; border-radius:6px; font-size:14px;">Pay via UPI app →</a>
+        <p style="margin:14px 0 0; color:#94a3b8; font-size:11px;">Scan the QR code, or tap the button on your phone to open GPay / PhonePe / Paytm.</p>
+      </div>
+    `;
+  }
+
+  async function sendReply(id){
+    const textEl = document.getElementById('replyInput');
+    const text = textEl.value.trim();
+    if(!text) return;
+    const m = messages.find(x => x.id === id);
+    const statusEl = document.getElementById('replyStatus');
+    const btn = document.getElementById('sendBtn');
+
+    const paymentOn = document.getElementById('paymentToggle').checked;
+    const advanceAmount = document.getElementById('paymentAmount').value;
+    const totalAmount = document.getElementById('totalAmount').value;
+    const paymentSection = paymentOn ? buildPaymentSection(advanceAmount, totalAmount, "Advance due now") : "";
+
+    btn.disabled = true;
+    btn.textContent = "Sending...";
+    statusEl.textContent = "";
+
+    try {
+      // 1. Email the reply to the client
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_REPLY_TEMPLATE_ID, {
+        to_email: m.reply_to,
+        from_name: m.from_name,
+        reply_text: text,
+        payment_section: paymentSection
+      });
+
+      // 2. Mark as replied in Supabase
+      const { error } = await supabaseClient
+        .from('messages')
+        .update({ replied: true, reply_text: text, replied_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+
+      m.replied = true;
+      m.reply_text = text;
+      statusEl.textContent = 'Sent ✓';
+      setTimeout(()=>{ openMessage(id); }, 500);
+    } catch(err) {
+      console.error('Reply error:', err);
+      statusEl.textContent = 'Failed — try again';
+      btn.disabled = false;
+      btn.textContent = "Send reply →";
+    }
+  }
+
+  // Live-update the "remaining" preview as the admin types totals in the detail view
+  document.addEventListener('input', function(e){
+    if (e.target.id === 'finalTotalAmount' || e.target.id === 'finalAdvanceReceived'){
+      const total = Number(document.getElementById('finalTotalAmount').value) || 0;
+      const advance = Number(document.getElementById('finalAdvanceReceived').value) || 0;
+      const remaining = total - advance;
+      const preview = document.getElementById('remainingPreview');
+      preview.textContent = total > 0 ? `Remaining to collect: ₹${remaining.toLocaleString('en-IN')}` : '';
+    }
+  });
+
+  async function sendAdvanceRequest(id){
+    const m = messages.find(x => x.id === id);
+    const total = document.getElementById('advanceTotalAmount').value;
+    const advance = document.getElementById('advanceAmountStandalone').value;
+    const statusEl = document.getElementById('advanceStatus');
+    const btn = document.getElementById('advanceSendBtn');
+
+    if (!advance || Number(advance) <= 0){
+      statusEl.textContent = 'Enter an advance amount';
+      return;
+    }
+
+    const paymentSection = buildPaymentSection(advance, total, "Advance payment due");
+
+    btn.disabled = true;
+    btn.textContent = "Sending...";
+    statusEl.textContent = "";
+
+    try {
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_REPLY_TEMPLATE_ID, {
+        to_email: m.reply_to,
+        from_name: m.from_name,
+        reply_text: `Here's the advance payment request to get your project started.`,
+        payment_section: paymentSection
+      });
+      statusEl.textContent = 'Sent ✓';
+    } catch(err) {
+      console.error('Advance request error:', err);
+      statusEl.textContent = 'Failed — try again';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Send advance request →";
+    }
+  }
+
+  async function sendPaymentRequest(id){
+    const m = messages.find(x => x.id === id);
+    const total = Number(document.getElementById('finalTotalAmount').value) || 0;
+    const advance = Number(document.getElementById('finalAdvanceReceived').value) || 0;
+    const remaining = total - advance;
+    const statusEl = document.getElementById('paymentStatus');
+    const btn = document.getElementById('paymentSendBtn');
+
+    if (total <= 0 || remaining <= 0){
+      statusEl.textContent = 'Check the amounts entered';
+      return;
+    }
+
+    const paymentSection = buildPaymentSection(remaining, total, "Remaining payment due — project complete");
+
+    btn.disabled = true;
+    btn.textContent = "Sending...";
+    statusEl.textContent = "";
+
+    try {
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_REPLY_TEMPLATE_ID, {
+        to_email: m.reply_to,
+        from_name: m.from_name,
+        reply_text: `Your project is complete! Here's the remaining payment to close it out.`,
+        payment_section: paymentSection
+      });
+      statusEl.textContent = 'Sent ✓';
+    } catch(err) {
+      console.error('Payment request error:', err);
+      statusEl.textContent = 'Failed — try again';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Send remaining payment request →";
+    }
+  }
+</script>
+</body>
+</html>
